@@ -2,14 +2,24 @@ const fs = require("fs")
 
 const text = fs.readFileSync("test.txt").toString();
 
+const wrongIndexes = fs.readFileSync("wrong.txt").toString().split(" ").map(Number);
+
 const answers = text.split(/\n{2,}/gi);
 const questions = answers.map(aw => aw.replace(/{.*?}/g, "").replace(/[+-]/gi, "? "));
-const questionsAnswers = answers.map((answer, index) => ({answer, question: questions[index], index}))//.slice(192, 213);
+let questionsAnswers = answers.map((answer, id) => ({answer, question: questions[id], id}));
+questionsAnswers = questionsAnswers.slice(0, 122); // from {index}
+//questionsAnswers = questionsAnswers.filter(qa => wrongIndexes.includes(qa.id)); //wrong
 
-fs.writeFileSync("test.json", JSON.stringify(questions.map((q, i) => i + "=" + q), null, 2));
+questionsAnswers.forEach((qa, index) => qa.index = index);
 
 let currentQuestion = questionsAnswers[0];
 setText(currentQuestion.question)
+
+// console.log(currentQuestion);
+// process.exit();
+
+fs.writeFileSync("test.json", JSON.stringify(questions.map((q, i) => i + "=" + q), null, 2));
+
 
 function setText(text) {
   console.clear();
@@ -19,33 +29,32 @@ function setText(text) {
 process.stdin.on("data", data => {
   data = data.toString().toLowerCase().replace(/\s/, "");
 
-  console.log(data)
-
   let prefix;
+
+  const getPrefix = qa => "id: " + currentQuestion.id + " all: " + questionsAnswers.length + "\n";
 
   switch (data) {
     // random
     case "r":
       currentQuestion = getRandom(questionsAnswers);
-      prefix = currentQuestion.index + " of " + questionsAnswers.length + "\n";
-      setText(prefix + currentQuestion.question)
+      setText(getPrefix() + currentQuestion.question)
       break;
     //answer
     case "a":
-      prefix = currentQuestion.index + " of " + questionsAnswers.length + "\n";
-      setText(prefix + currentQuestion.answer);
+      setText(getPrefix() + currentQuestion.answer);
       break;
     // next
     case "n":
-      currentQuestion = questionsAnswers[currentQuestion.index + 1];
-      prefix = currentQuestion.index + " of " + questionsAnswers.length + "\n";
-      setText(prefix + currentQuestion.question)
+      currentQuestion = questionsAnswers.find(q => q.index === currentQuestion.index + 1);
+      setText(getPrefix() + currentQuestion.question)
       break;
     // previous
     case "p":
-      currentQuestion = questionsAnswers[currentQuestion.index - 1];
-      prefix = currentQuestion.index + " of " + questionsAnswers.length + "\n";
-      setText(prefix + currentQuestion.question)
+      currentQuestion = questionsAnswers.find(q => q.index === currentQuestion.index - 1);
+      setText(getPrefix() + currentQuestion.question)
+      break;
+    case "w":
+      fs.appendFileSync("wrong.txt", currentQuestion.id + " ")
   }
 
   if (data.startsWith("i")) {
