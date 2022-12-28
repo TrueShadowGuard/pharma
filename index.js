@@ -2,56 +2,59 @@ const fs = require("fs")
 
 const text = fs.readFileSync("test.txt").toString();
 
-const wrongIndexes = fs.readFileSync("wrong.txt").toString().split(" ").map(Number);
+//const wrongIndexes = fs.readFileSync("wrong.txt").toString().split(" ").map(Number);
 
-const answers = text.split(/\n{2,}/gi);
-const questions = answers.map(aw => aw.replace(/{.*?}/g, "").replace(/[+-]/gi, "? "));
-let questionsAnswers = answers.map((answer, id) => ({answer, question: questions[id], id}));
-questionsAnswers = questionsAnswers.slice(0, 122); // from {index}
-//questionsAnswers = questionsAnswers.filter(qa => wrongIndexes.includes(qa.id)); //wrong
+const answers = text.replace(/(\n\*\*.{10,}\*\*)/gi, "===12345===$1").split("===12345===");
+let questionsAnswers = answers.map(answer => answer
+  .replace(/\n{2,}/gi, "\n")
+  .replace(/\*\*/gi, "")
+).map(answer => {
+  let rows = answer.split("\n");
+  let variants = rows.filter((row) => row.match(/([-+])\s*/gi));
+  let notVariants = rows.filter((row) => !row.match(/([-+])\s*/gi));
+  shuffleArray(variants);
+  return notVariants.concat(variants).join("\n");
+}).map((answer, index) => ({
+  answer,
+  id: index,
+  question: answer.replace(/([-+])\s*/gi, "? ")
+}));
 
-questionsAnswers.forEach((qa, index) => qa.index = index);
+// questionsAnswers = questionsAnswers.slice(0, 1);
 
-let currentQuestion = questionsAnswers[0];
-setText(currentQuestion.question)
+questionsAnswers = questionsAnswers.map((questionsAnswer, index) => ({...questionsAnswer, index}));
 
-// console.log(currentQuestion);
+// console.log(questionsAnswers)
 // process.exit();
 
-fs.writeFileSync("test.json", JSON.stringify(questions.map((q, i) => i + "=" + q), null, 2));
-
-
-function setText(text) {
-  console.clear();
-  console.log(text);
-}
+let currentQuestion = questionsAnswers[0];
+showQuestion(currentQuestion);
 
 process.stdin.on("data", data => {
   data = data.toString().toLowerCase().replace(/\s/, "");
-
-  let prefix;
-
-  const getPrefix = qa => "id: " + currentQuestion.id + " all: " + questionsAnswers.length + "\n";
 
   switch (data) {
     // random
     case "r":
       currentQuestion = getRandom(questionsAnswers);
-      setText(getPrefix() + currentQuestion.question)
+      showQuestion(currentQuestion);
       break;
     //answer
     case "a":
-      setText(getPrefix() + currentQuestion.answer);
+      showAnswer(currentQuestion);
       break;
     // next
     case "n":
       currentQuestion = questionsAnswers.find(q => q.index === currentQuestion.index + 1);
-      setText(getPrefix() + currentQuestion.question)
+      showQuestion(currentQuestion);
       break;
     // previous
     case "p":
       currentQuestion = questionsAnswers.find(q => q.index === currentQuestion.index - 1);
-      setText(getPrefix() + currentQuestion.question)
+      showQuestion(currentQuestion);
+      break;
+    case "q":
+      showQuestion(currentQuestion);
       break;
     case "w":
       fs.appendFileSync("wrong.txt", currentQuestion.id + " ")
@@ -76,3 +79,30 @@ function getRandom(arr) {
   return arr.splice(index, 1)[0];
 }
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+}
+
+function setText(text) {
+  console.clear();
+  console.log(text);
+}
+
+function getPrefix(questionAnswer) {
+  return "id: " + questionAnswer.id + " all: " + questionsAnswers.length + "\n";
+}
+
+function showQuestion(questionAnswer) {
+  console.clear();
+  console.log(getPrefix(questionAnswer) + questionAnswer.question);
+}
+
+function showAnswer(questionAnswer) {
+  console.clear();
+  console.log(getPrefix(questionAnswer) + questionAnswer.answer);
+}
